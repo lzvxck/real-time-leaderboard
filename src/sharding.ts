@@ -1,5 +1,4 @@
 import { Leaderboard } from "./leaderboard";
-import { REBALANCE_THRESHOLD, splitShard } from "./rebalance";
 
 function hash(key: string): number {
   let h = 0;
@@ -9,41 +8,21 @@ function hash(key: string): number {
 
 export class ShardedLeaderboard {
   private shards: Leaderboard[];
-  private keyCounts: number[];
 
   constructor(shardCount = 8) {
     this.shards = Array.from({ length: shardCount }, () => new Leaderboard());
-    this.keyCounts = Array.from({ length: shardCount }, () => 0);
   }
 
-  private index(key: string): number {
-    return hash(key) % this.shards.length;
+  private shardFor(key: string): Leaderboard {
+    return this.shards[hash(key) % this.shards.length];
   }
 
   increment(key: string, amount = 1): number {
-    const idx = this.index(key);
-    const shard = this.shards[idx];
-    const isNewKey = shard.score(key) === 0;
-    const score = shard.increment(key, amount);
-    if (isNewKey) this.keyCounts[idx]++;
-
-    if (this.keyCounts[idx] >= REBALANCE_THRESHOLD) {
-      // Read the shard's current contents and swap in two fresh halves.
-      // Any increment that lands on `shard` between this read and the
-      // reassignment below is applied to an object nobody references anymore.
-      const entries = shard.topN(Number.MAX_SAFE_INTEGER);
-      const [left, right] = splitShard(entries);
-      this.shards[idx] = left;
-      this.shards.push(right);
-      this.keyCounts[idx] = Math.floor(this.keyCounts[idx] / 2);
-      this.keyCounts.push(this.keyCounts[idx]);
-    }
-
-    return score;
+    return this.shardFor(key).increment(key, amount);
   }
 
   score(key: string): number {
-    return this.shards[this.index(key)].score(key);
+    return this.shardFor(key).score(key);
   }
 
   topN(n: number): Array<{ key: string; score: number }> {
