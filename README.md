@@ -11,6 +11,14 @@ npm install
 npm test
 ```
 
+## Restart behavior
+
+On restart, `loadSnapshot` (`src/snapshot.ts`) replays the last saved
+snapshot file back into the leaderboard before the server starts accepting
+traffic. Any increments that happened after the last periodic snapshot flush
+(interval controlled by `SNAPSHOT_INTERVAL_MS`, see `src/config.ts`) are
+lost — this is a known, accepted tradeoff for the in-memory design, not a bug.
+
 ## Architecture
 
 - **Sharding** (`src/sharding.ts`): keys are routed to one of N in-memory
