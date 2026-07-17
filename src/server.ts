@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { Leaderboard } from "./leaderboard";
+import { incrementCount } from "./metrics";
 
 export function createApp(board: Leaderboard) {
   return createServer((req, res) => {
@@ -11,6 +12,7 @@ export function createApp(board: Leaderboard) {
       req.on("end", () => {
         const { key, amount } = JSON.parse(body || "{}");
         const score = board.increment(key, amount ?? 1);
+        incrementCount.increment();
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify({ key, score }));
       });
@@ -21,6 +23,12 @@ export function createApp(board: Leaderboard) {
       const n = Number(url.searchParams.get("n") ?? "10");
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(board.topN(n)));
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/metrics") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ increments: incrementCount.get() }));
       return;
     }
 
